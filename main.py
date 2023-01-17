@@ -3,47 +3,71 @@
 # Data Criacao..: 09/01/2023
 # Descricao.....: Zipa arquivos e efetua upload para o bucket
 # ===========================================================================================
-from io import BytesIO
-from utils import Blob, zip_file, merge_files
-from tempfile import mkdtemp
-from shutil import rmtree
+import io 
+import time
+from zipfile import ZipFile, ZIP_DEFLATED
+import sys
+from utils import Blob
 import functions_framework
+
+start_time = time.time()
 
 @functions_framework.http
 def main(request):
 
-  # Variaveis
-  # GCS_INPUT  = "gs://banco-bv-sandbox/test/input/students"
-  # GCS_OUTPUT = "gs://banco-bv-sandbox/test/output/"
+  # Variaveis de Entrada
   GCS_INPUT  = request.json["gcs_input"]
   GCS_OUTPUT = request.json["gcs_output"]
+  FILENAME = request.json["filename"]
 
+  # Variaveis de Input
   INPUT_BUCKET_NAME = GCS_INPUT.split("/")[2]
   PREFIX = GCS_INPUT.split('/',3)[3].replace('*','')
 
+  # Variaveis de Output
   OUTPUT_BUCKET_NAME = GCS_OUTPUT.split("/")[2]
   FILE_PATH = GCS_OUTPUT.split('/',3)[3]
-  FILENAME = PREFIX.split('/')[-1]
 
-  LOCALPATH = mkdtemp(dir='/tmp/') # Cria diretorio temporario
-
-  # Fluxo Principal
   input_bucket: Blob = Blob(INPUT_BUCKET_NAME)        # Conecta bucket origem
-  output_bucket: Blob = Blob(OUTPUT_BUCKET_NAME)      # Conecta bucket destino
   blob_files: list = input_bucket.lista_blobs(PREFIX) # Lista arquivos bucket
   
-  if blob_files:
-    for blob in blob_files:
-      blob_buffer = BytesIO(input_bucket.download_blob(LOCALPATH, blob)) # Baixa arquivos diretorio temporario
-      # merge_files(LOCALPATH, blob)                         # Merge dos arquivos csv em um 
-    
-      zip_buffer = zip_file(LOCALPATH,FILENAME,blob_buffer)     # Gera buffer arquivos zipados
-      output_bucket.upload_blob(FILENAME,FILE_PATH,zip_buffer)  # Efetua upload arquivos zipados
+  output_bucket: Blob = Blob(OUTPUT_BUCKET_NAME,f"{FILE_PATH}{FILENAME}.zip")  # Conecta ao blob destino
+  
 
+  # Verificando se existem arquivos no bucket passado
+  if blob_files:
+    archive = io.BytesIO()  # Inicializando arquivo em memoria
+    
+    # Inicializando escrita zip 
+    with ZipFile(archive,"w",compression=ZIP_DEFLATED) as zip_file:
+      
+      # Abrindo arquivo dentro do zip
+      with zip_file.open(f"{FILENAME}.csv","w", force_zip64=True) as zip_archive:
+        for blob_path in blob_files:
+
+          blob_name=blob_path.split('/')[-1]
+          blob_size = input_bucket.get_size(blob_path)
+          print(f"[INFO] - Iniciado download arquivo {blob_name}")
+
+          # Identifica quantas vezes o arquivo deve ser divido
+          split_size = 80 # Tamanho em MB
+          split_number = int((blob_size/1024**2)/split_size) if (blob_size/1024**2) > split_size else 1 
+          split_list = Blob.split_byte_size(size=blob_size,blob_path=blob_path,split_number=split_number)
+
+          for idx, chunk_blob in enumerate(split_list):
+            chunk_downloaded = input_bucket.download_by_parts(input=chunk_blob)
+            print(f"[INFO] - Download arquivo {blob_name} parte {idx+1} de {len(split_list)}")
+
+            zip_archive.write(chunk_downloaded) # Escreve no arquivo em memoria
+
+            print(f"[INFO] - Upload arquivo {blob_name} parte {idx+1} de {len(split_list)}")
+            time.sleep(0.05)
+
+    archive.seek(0) # Acum
+    output_bucket.upload_bytes_to_bucket(file_buffer=archive,content_type="application/zip")
+    archive.close() # Apagando arquivo em memoria
   else:
     print('[INFO] - Arquivo(s) não encontrado(s)')
   
-  rmtree(LOCALPATH)                                              # Remove Diretorio temporario
-
-  print("[INFO] - Cloud Function concluida")
+  print("[INFO] - Cloud Function concluida em {:.2f} segundos".format(round(time.time() - start_time,2)))
   return "[INFO] - Cloud Function concluida"
