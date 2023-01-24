@@ -1,8 +1,11 @@
 # Cloud function
 Esta cloud function tem como objetivo zipar multiplos arquivos csvs em um arquivo zip
 
+## Indice
 [Deploy Function](#deploy)
+[Build Image](#build-docker)
 [Utilidade](#util)
+
 
 Input: 
 pytest - Covarage
@@ -23,11 +26,17 @@ gcloud functions deploy fnc_zip_file_128mb \
 =============================== -->
 functions-framework --target main --debug
 
-
+https://poc-bv-zip-file-7uo5gkxb3a-uc.a.run.app
 # TEST
-curl --data '{"gcs_input": "gs://banco-bv-sandbox/test/input/arquivo20gb*","gcs_output": "gs://banco-bv-sandbox/test/output/"}'  \
+curl --data '{"gcs_input": "gs://banco-bv-sandbox/test/input_bv/github_repos_files","gcs_output": "gs://banco-bv-sandbox/test/output", "filename":"github_repos_files"}'  \
   --header "Content-Type: application/json" \
-  --header "Accept: application/json" http://127.0.0.1:8080
+  --header "Accept: application/json" https://poc-zip-file-7uo5gkxb3a-uc.a.run.app &
+
+  https://poc-bv-zip-file-7uo5gkxb3a-uc.a.run.app
+  
+  https://poc-zip-file-7uo5gkxb3a-uc.a.run.app -- leega function
+  localhost:8080
+gs://banco-bv-sandbox/test/input/arquivo100gb
 
 {
   "gcs_input":  "gs://banco-bv-sandbox/test/input/students*",
@@ -64,6 +73,13 @@ Estes testes foram feitos baixando o arquivo em partes e em seguida subindo essa
   - Cloud Function 1gb -> Ok
 
 
+### Build Docker
+[Indice](#indice)
+Este comando é responsável por gerar uma imagem docker para cloud function
+```shell
+gcloud builds submit --pack image=us-central1-docker.pkg.dev/banco-bv-sandbox/bv-repo/poc-zip-file,env=GOOGLE_FUNCTION_TARGET=main
+```
 
-# Storytelling
-Com o foco em custo partimos para utilização da cloud function como a demanda não especifiva 
+### Testes
+[Indice](#indice)
+Arquivos utilizados para efetuar o stream 

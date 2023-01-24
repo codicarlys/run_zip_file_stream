@@ -29,23 +29,12 @@ class Blob:
     files = []
     blobs = self.bucket.list_blobs()
 
-    for blob in blobs:
-      if match(f"{prefix}.*",blob.name):
-        files.append(blob.name)
+    for blob_file in blobs:
+      if prefix in blob_file.name:
+        files.append(blob_file.name)
     
     print("[INFO] - Listado arquivos bucket")
     return files
-
-  def download_blob(self, csv_file: str):
-    """ Baixa arquivos csv do bucket
-        Parameters: csv_file (str) - Arquivos csv
-        Return: Retorna dados armazenados no blob em Bytes 
-    """
-    blob = self.bucket.blob(csv_file)
-    blob_name = csv_file.split('/')[-1]
-    
-    print(f"[INFO] - Efetuando download arquivo {blob_name}")
-    return blob.download_as_string()
 
   def upload_bytes_to_bucket(self, file_buffer: io.BytesIO, content_type: str):
     """ Efetua upload do buffer
