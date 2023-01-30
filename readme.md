@@ -4,8 +4,8 @@ Esta cloud function tem como objetivo zipar multiplos arquivos csvs em um arquiv
 ## Indice
 [Deploy Function](#deploy)
 [Build Image](#build-docker)
+[Http Call](#http-call)
 [Utilidade](#util)
-
 
 Input: 
 pytest - Covarage
@@ -25,23 +25,47 @@ gcloud functions deploy fnc_zip_file_128mb \
 ----------UTIL COMMANDS
 =============================== -->
 functions-framework --target main --debug
-
 https://poc-bv-zip-file-7uo5gkxb3a-uc.a.run.app
-# TEST
-curl --data '{"gcs_input": "gs://banco-bv-sandbox/test/input_bv/github_repos_files","gcs_output": "gs://banco-bv-sandbox/test/output", "filename":"github_repos_files"}'  \
-  --header "Content-Type: application/json" \
-  --header "Accept: application/json" https://poc-zip-file-7uo5gkxb3a-uc.a.run.app &
 
-  https://poc-bv-zip-file-7uo5gkxb3a-uc.a.run.app
-  
-  https://poc-zip-file-7uo5gkxb3a-uc.a.run.app -- leega function
-  localhost:8080
-gs://banco-bv-sandbox/test/input/arquivo100gb
-
+## Cloud Function Call
 {
-  "gcs_input":  "gs://banco-bv-sandbox/test/input/students*",
-  "gcs_output": "gs://banco-bv-sandbox/test/output/"
+  "gcs_input": "gs://banco-bv-sandbox/test/input/sample",
+  "gcs_output": "gs://banco-bv-sandbox/test/output",
+  "filename" : "arquivo20gb",
+  "workers" : 8
 }
+
+## Curl Call
+*Non Authenticated*
+curl --data '{  "gcs_input": "gs://banco-bv-sandbox/test/input/sample",  "gcs_output": "gs://banco-bv-sandbox/test/output",  "filename" : "sample",  "queue_size" : 30}'  \
+  --header "Content-Type: application/json" \
+  --header "Accept: application/json" \
+   https://poc-zip-file-stream-7uo5gkxb3a-uc.a.run.app
+   localhost:8080
+   https://poc-zip-file-stream-7uo5gkxb3a-uc.a.run.app
+  https://poc-zip-file-stream-ai-7uo5gkxb3a-uc.a.run.app
+
+*Authenticated* - fnc_zip_file_stream
+curl -m 550 -X POST https://us-central1-banco-bv-sandbox.cloudfunctions.net/fnc_zip_file_128mb \
+-H "Authorization: bearer $(gcloud auth print-identity-token)" \
+-H "Content-Type: application/json" \
+-d '{
+    "gcs_input": "gs://banco-bv-sandbox/test/input/40gb/",  
+    "gcs_output": "gs://banco-bv-sandbox/test/output",  
+    "filename" : "arquivo40gb",  "queue_size" : 30
+}
+'
+curl --data '{"gcs_input": "gs://banco-bv-sandbox/test/input/sample","gcs_output": "gs://banco-bv-sandbox/test/output", "filename":"sample"}'  \
+  --header "Content-Type: application/json" \
+  --header "Accept: application/json" localhost:8080
+
+### Build Docker
+[Indice](#indice)
+Este comando é responsável por gerar uma imagem docker para cloud function
+```shell
+gcloud builds submit --pack image=us-central1-docker.pkg.dev/banco-bv-sandbox/bv-repo/poc-zip-file-stream,env=GOOGLE_FUNCTION_TARGET=main
+gcloud builds submit --pack image=us-central1-docker.pkg.dev/banco-bv-sandbox/bv-repo/poc-zip-file-stream-ai,env=GOOGLE_FUNCTION_TARGET=main
+```
 
 ## Testes
 Testes abaixo foram feitos executando o seguinte processo. Baixar os arquivos acumulá-los e subir para núvem
@@ -71,14 +95,6 @@ Estes testes foram feitos baixando o arquivo em partes e em seguida subindo essa
 
 8. Arquivo arquivo6gb => 6gb
   - Cloud Function 1gb -> Ok
-
-
-### Build Docker
-[Indice](#indice)
-Este comando é responsável por gerar uma imagem docker para cloud function
-```shell
-gcloud builds submit --pack image=us-central1-docker.pkg.dev/banco-bv-sandbox/bv-repo/poc-zip-file,env=GOOGLE_FUNCTION_TARGET=main
-```
 
 ### Testes
 [Indice](#indice)
