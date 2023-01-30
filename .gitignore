@@ -1,4 +1,4 @@
 *.toml
 __pycache__
 .vscode
-*.md
+readme.md
